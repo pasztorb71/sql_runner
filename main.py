@@ -1,8 +1,17 @@
 import multiprocessing
 
+import psycopg2
+
 from Cluster import Cluster
 
-def mproc(conn, cmd, return_dict):
+def mproc(db, cmd, return_dict):
+    print(db)
+    conn = psycopg2.connect(
+        host='localhost',
+        port=5433,
+        database=db,
+        user="postgres",
+        password='fLXyFS0RpmIX9uxGII4N')
     cur = conn.cursor()
     cur.execute(cmd)
     record = cur.fetchall()
@@ -17,9 +26,9 @@ if __name__ == '__main__':
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
     jobs = []
+    print('started')
     for db in sandbox.databases:
-        conn = sandbox.get_conn(db)
-        p = multiprocessing.Process(target=mproc, args=(conn, cmd, return_dict))
+        p = multiprocessing.Process(target=mproc, args=(db, cmd, return_dict))
         jobs.append(p)
         p.start()
 
