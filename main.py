@@ -5,7 +5,7 @@ import psycopg2
 from Cluster import Cluster
 
 def mproc(db, cmd, return_dict):
-    print(db)
+    d = {}
     conn = psycopg2.connect(
         host='localhost',
         port=5433,
@@ -15,18 +15,21 @@ def mproc(db, cmd, return_dict):
     cur = conn.cursor()
     cur.execute(cmd)
     record = cur.fetchall()
+    for rec in record:
+        cur.execute("select count(*) from " + '.'.join(rec))
+        r = cur.fetchone()
+        d[rec[1]] = r[0]
+    return_dict[db] = d
     cur.close()
     conn.close()
-    return_dict[db] = [rec[0] for rec in record]
 
 if __name__ == '__main__':
     sandbox = Cluster(host='localhost', port=5433, passw='fLXyFS0RpmIX9uxGII4N')
-    cmd = "SELECT tablename FROM pg_catalog.pg_tables WHERE tablename LIKE '%$hist'"
+    cmd = "SELECT schemaname,tablename FROM pg_catalog.pg_tables WHERE schemaname NOT in('public', 'pg_catalog', 'information_schema') and tablename not like '%$hist'"
 
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
     jobs = []
-    print('started')
     for db in sandbox.databases:
         p = multiprocessing.Process(target=mproc, args=(db, cmd, return_dict))
         jobs.append(p)
@@ -34,4 +37,6 @@ if __name__ == '__main__':
 
     for job in jobs:
         job.join()
-    print(return_dict)
+    for db, tables in return_dict.items():
+        if tables:
+            print(db, tables)
